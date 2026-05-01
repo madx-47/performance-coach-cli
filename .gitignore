@@ -9,4 +9,4 @@ dist
 .github/
 .agent/
 .*/
-.task-details/
+task-details/
