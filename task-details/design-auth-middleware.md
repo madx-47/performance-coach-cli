@@ -1,130 +1,110 @@
 # Task Playbook: Design auth middleware
 
+> **Task Description**: Create JWT-based auth middleware for the API gateway. Must handle refresh tokens and role-based access.
+
 ## 📊 Classification Breakdown
 
 | Dimension | Confidence | Rationale |
 | :--- | :--- | :--- |
-| **DESIGN IMPLEMENTATION (Primary)** | 95% | The task explicitly requires designing and implementing a specific technical component (JWT auth middleware) with defined architectural constraints like refresh tokens and RBAC. |
-| REQUIREMENT ANALYSIS | 80% | The task involves interpreting high-level requirements (JWT, refresh tokens, RBAC) to determine the specific scope and acceptance criteria for the middleware. |
-| BUILD TEST DEPLOYMENT | 75% | Creating a functional middleware for an API gateway inherently requires writing tests to validate authentication flows and ensuring it integrates correctly into the deployment pipeline. |
-| COMMITMENT OWNERSHIP | 100% | As per the classification rules, every task automatically includes this dimension to ensure reliability and accountability for the delivered feature. |
+| **DESIGN IMPLEMENTATION (Primary)** | 95% | The task explicitly requires designing and implementing a JWT-based auth middleware with specific architectural components like refresh tokens and role-based access. |
+| REQUIREMENT ANALYSIS | 80% | The task involves interpreting high-level requirements for token handling and access control to ensure the solution meets the API gateway's specific security needs. |
+| COMMITMENT OWNERSHIP | 90% | As per the classification rules, every task automatically includes this dimension as a cross-cutting responsibility for the outcome of the work. |
 
 ## 🛠 Implementation Strategy
 
 ### 🎯 DESIGN IMPLEMENTATION
 
 #### ✅ Above Average Behaviors
-- Evaluates token storage strategies (Redis vs. DB) for refresh token revocation before implementation to balance latency and security.
-- Implements a modular middleware pattern where token verification, RBAC logic, and error handling are separated into distinct, reusable functions.
-- Defines a comprehensive error response schema for specific failure modes (e.g., 401 vs 403, expired vs invalid signature) rather than generic 500 errors.
+- Draft a brief design doc comparing a centralized gateway strategy vs. sidecar patterns for token validation before writing code, selecting the one that minimizes latency.
+- Implement a modular middleware structure where token validation, refresh logic, and RBAC checks are decoupled functions, allowing independent unit testing.
+- Pre-define error response schemas for specific failure modes (e.g., 'TokenExpired', 'RefreshTokenInvalid', 'InsufficientRole') to ensure consistent client handling.
 
 #### ★ Outstanding Stretch Goals
-- Designs a 'grace period' mechanism for refresh tokens that allows a short window of overlap during rotation to prevent race conditions in high-concurrency environments.
-- Creates a self-documenting OpenAPI/Swagger schema extension that automatically visualizes the auth requirements and RBAC roles for API consumers.
+- Design the middleware to support a 'grace period' for refresh tokens, automatically rotating them to mitigate replay attacks without breaking client sessions.
+- Integrate a simulated load test into the PR to demonstrate that the JWT verification overhead remains under 5ms per request under high concurrency.
 
 #### ⚠ Pitfalls to Avoid
-- Hardcoding role names or token expiration times directly in the middleware logic instead of using configuration constants.
-- Implementing a monolithic `authenticate` function that mixes token parsing, signature validation, and permission checking, making it hard to test.
-- Ignoring the 'clock skew' issue when validating token expiration, leading to legitimate users being rejected.
+- Hardcoding role names or token expiration logic directly inside the middleware handler instead of using configuration or constants.
+- Creating a single monolithic 'auth' function that attempts to validate, decode, refresh, and check permissions, making it impossible to test edge cases in isolation.
+- Failing to handle the specific case where a refresh token is valid but the associated access token is revoked or expired in a way that leaks user data.
 
 #### 💡 Coaching Nudge
-- Sketch the token lifecycle flow (Access + Refresh rotation) on a whiteboard before writing a single line of code to identify race conditions.
+- Before typing the first line, write a 5-minute 'Architecture Decision Record' explaining why you chose this specific JWT library and refresh strategy.
 
 ---
 
 ### 🎯 REQUIREMENT ANALYSIS
 
 #### ✅ Above Average Behaviors
-- Clarifies the specific RBAC granularity required (e.g., resource-level vs. action-level) and documents the default fallback behavior for undefined roles.
-- Proactively identifies and documents the assumption regarding where refresh tokens are stored client-side (httpOnly cookie vs. local storage) and its security implications.
-- Validates the token revocation strategy with the security team, ensuring the solution aligns with compliance requirements (e.g., GDPR, SOC2).
+- Proactively clarify the exact role hierarchy (e.g., are roles hierarchical or flat?) and the expected behavior when a user's role changes mid-session.
+- Document assumptions about the refresh token storage mechanism (e.g., HTTP-only cookie vs. local storage) and get explicit sign-off from the security lead.
+- Identify and ask about the required behavior for 'graceful degradation' if the identity provider is temporarily unreachable.
 
 #### ★ Outstanding Stretch Goals
-- Proposes a 'break-glass' administrative endpoint to forcibly revoke all tokens for a specific user in case of a security breach.
-- Drafts a security threat model for the auth flow specifically addressing replay attacks and token theft scenarios before implementation.
+- Propose a fallback mechanism for the API gateway (e.g., caching recent valid tokens) in case the central auth service experiences latency spikes, and validate this with the product owner.
+- Map the new auth flow against existing legacy endpoints to identify potential breaking changes for current API consumers before implementation starts.
 
 #### ⚠ Pitfalls to Avoid
-- Assuming the existing JWT library handles refresh token rotation automatically without verifying its configuration.
-- Implementing RBAC based on a hardcoded list of roles that doesn't match the actual business hierarchy.
-- Failing to ask how the system should handle a user whose permissions change mid-session.
+- Implementing a rigid role check that assumes 'admin' is the only high-privilege role, ignoring the need for granular permissions (e.g., 'admin:read' vs 'admin:write').
+- Assuming the client will always send the refresh token in the header without verifying the agreed-upon transmission method (e.g., secure cookie).
+- Ignoring the requirement for token revocation, assuming that expiration is the only way to invalidate access.
 
 #### 💡 Coaching Nudge
-- Draft a one-paragraph 'Security Assumptions' document and request a quick 10-minute validation from the lead architect.
-
----
-
-### 🎯 BUILD TEST DEPLOYMENT
-
-#### ✅ Above Average Behaviors
-- Writes unit tests that specifically mock edge cases like 'expired refresh token', 'revoked token', and 'malformed JWT headers'.
-- Sets up an integration test suite that spins up a temporary API Gateway instance to verify the full auth flow end-to-end.
-- Configures the CI pipeline to fail the build if code coverage for the auth module drops below 90%.
-
-#### ★ Outstanding Stretch Goals
-- Creates a local 'security sandbox' script that simulates various attack vectors (e.g., token tampering) to verify the middleware's defensive posture.
-- Implements a canary deployment strategy for the middleware to monitor error rates on auth requests before full rollout.
-
-#### ⚠ Pitfalls to Avoid
-- Testing only the 'happy path' where tokens are valid and roles match, ignoring invalid token scenarios.
-- Relying solely on manual testing in a local environment without automated regression tests for the auth flow.
-- Deploying the middleware without verifying that existing non-authenticated public endpoints remain unaffected.
-
-#### 💡 Coaching Nudge
-- Run the full test suite locally with a 'chaos' flag enabled (if available) to simulate network latency during token validation.
+- Schedule a 15-minute 'Assumption Validation' call with the security architect to review your mental model of the refresh token rotation flow.
 
 ---
 
 ### 🎯 COMMITMENT OWNERSHIP
 
 #### ✅ Above Average Behaviors
-- Monitors the logs in the staging environment immediately after deployment to detect any unexpected 401/403 spikes.
-- Proactively updates the team's onboarding documentation with the new auth flow details and role definitions.
-- Stays available during the first production deployment window to troubleshoot any immediate authentication failures.
+- Monitor the middleware in staging immediately after deployment to verify that error logs are correctly formatted and no 500s are occurring during token refresh.
+- Proactively update the API documentation (OpenAPI/Swagger) to reflect the new authentication headers and error codes before merging the code.
+- Create a runbook for on-call engineers detailing how to rotate keys or debug token issues specific to this new middleware.
 
 #### ★ Outstanding Stretch Goals
-- Conducts a post-implementation retrospective specifically on the auth flow to identify improvements for the next iteration.
-- Sets up a custom dashboard alert for 'failed authentication due to policy mismatch' to proactively catch permission configuration errors.
+- Implement a canary deployment strategy for the middleware, routing 5% of traffic to the new version to catch edge cases before full rollout.
+- Follow up with the frontend team 24 hours after deployment to confirm their integration with the new refresh token flow is seamless.
 
 #### ⚠ Pitfalls to Avoid
-- Marking the ticket as 'Done' immediately after the PR merge without verifying it in the staging environment.
-- Blaming the frontend team for auth errors without checking the middleware logs first.
-- Leaving 'TODO' comments in the code regarding edge cases that were not addressed.
+- Marking the task as 'done' immediately after the code merges, ignoring the need to verify it works correctly in the production environment.
+- Leaving a TODO comment in the code regarding a known edge case (e.g., 'handle clock skew') without creating a ticket to track it.
+- Blaming the frontend team for 401 errors without first verifying if the gateway is correctly rejecting the specific token format they are sending.
 
 #### 💡 Coaching Nudge
-- Schedule a 15-minute 'handoff' call with the frontend team lead to review the new auth headers and error codes.
+- Set a calendar reminder for 24 hours post-merge to personally review the first 100 error logs generated by this specific middleware.
 
 ---
 
 ## 📋 Checklists
 
 ### 1️⃣ Planning (Before Starting)
-- [ ] Confirm the JWT library version and verify its support for refresh token rotation and custom claims.
-- [ ] Define the exact RBAC matrix (Roles vs. Permissions) and get sign-off from the product owner.
-- [ ] Decide on the refresh token storage mechanism (stateless vs. stateful) and document the trade-offs.
-- [ ] Identify the specific error codes and messages required for the API Gateway response schema.
-- [ ] Review existing security policies to ensure the new middleware aligns with current encryption standards.
+- [ ] Confirm the JWT signing algorithm (e.g., RS256 vs HS256) and key management strategy with the security team.
+- [ ] Define the exact JSON structure for the access token payload, specifically the `roles` or `permissions` claim format.
+- [ ] Determine the storage and rotation strategy for refresh tokens (stateful database vs. stateless signed token).
+- [ ] Identify all existing API endpoints that will be protected by this middleware and verify backward compatibility requirements.
+- [ ] Draft a test matrix covering valid tokens, expired tokens, invalid signatures, and missing roles.
 
 ### 2️⃣ Execution (While Implementing)
-- [ ] Implement the middleware using a dependency injection pattern to allow easy mocking in tests.
-- [ ] Write unit tests for token parsing, signature verification, and role extraction logic.
-- [ ] Create integration tests that simulate the full lifecycle: Login -> Access Token Use -> Refresh -> Token Rotation.
-- [ ] Verify that the middleware correctly passes through public endpoints without triggering auth checks.
-- [ ] Ensure all sensitive data (tokens, secrets) are handled via environment variables and never hardcoded.
+- [ ] Verify that the middleware correctly extracts tokens from both the `Authorization` header and `Cookie` (if applicable).
+- [ ] Ensure the refresh token flow handles race conditions where multiple refresh requests might occur simultaneously.
+- [ ] Confirm that error responses are standardized (e.g., specific error codes and messages) to prevent information leakage.
+- [ ] Check that logging is sanitized to ensure no PII or secret tokens are written to application logs.
+- [ ] Validate that the middleware does not block requests for health check or public endpoints.
 
 ### 3️⃣ Pre-PR (Before Review)
-- [ ] All unit and integration tests pass locally with 100% coverage on critical auth paths.
-- [ ] Code has been linted and formatted according to the team's style guide.
-- [ ] A security review request has been drafted or attached to the PR description.
-- [ ] Documentation (README or inline comments) explains the token rotation flow and error handling.
-- [ ] The PR is split into logical commits (e.g., 'Setup', 'Core Logic', 'Tests', 'Docs') for easier review.
-- [ ] Verified that no sensitive secrets or keys are committed to the repository.
+- [ ] Run a full security scan (SAST) on the new code to detect hardcoded secrets or weak crypto implementations.
+- [ ] Ensure all unit tests for the refresh token rotation logic pass, including time-based edge cases.
+- [ ] Verify that the code is modular: the JWT validation logic is separate from the RBAC logic.
+- [ ] Update the local development `docker-compose` or environment setup to include the necessary mock auth services for testing.
+- [ ] Write a concise summary in the PR description explaining the design choices made during the planning phase.
+- [ ] Confirm that the middleware handles graceful degradation (e.g., logging a warning) if the key service is unavailable, rather than crashing.
 
 ## 🚀 Growth Nudges
 
-- **Before writing the first line of code**: Pause and ask: 'What is the worst-case security breach if this middleware fails?' to guide your defensive coding strategy.
-- **When you encounter a complex token rotation edge case**: Don't guess the solution; write a failing test first to define the expected behavior before implementing the fix.
-- **Immediately after merging the PR**: Check the production logs for the first hour to ensure no unexpected 401s are affecting real users.
+- **When you realize the refresh token logic is becoming complex with nested try/catch blocks.**: Stop and refactor: extract the refresh logic into a dedicated service class. Complexity here is a security risk; keep the flow linear and testable.
+- **When you are about to hardcode the 'admin' role name in an if-statement.**: Pause and check: is the role hierarchy defined in a config file or database? Hardcoding roles violates the principle of least privilege and makes future changes painful.
+- **When the PR review comments ask for clarification on error handling.**: Don't just fix the specific comment; update the documentation and add a test case for that specific error scenario to prevent recurrence.
 
 ## 📖 Mentor Guide
 
-To deliver this auth middleware at an Above Average level, you must treat security not as a feature but as the foundation of the system. Start by rigorously defining the requirements; do not assume how refresh tokens should be stored or how roles are structured. Engage with the security team and product owners to clarify the RBAC matrix and token revocation strategy before writing code. This upfront investment prevents costly refactoring later. When designing the implementation, prioritize modularity. Separate the concerns of token validation, role extraction, and error handling into distinct, testable units. This approach ensures that your code is readable, maintainable, and easy to audit. Avoid monolithic functions that try to do everything at once, as these are prone to bugs and difficult to secure. Your testing strategy must be equally robust. Do not just test the happy path where everything works. You must write tests that simulate attack vectors: expired tokens, revoked refresh tokens, malformed signatures, and role mismatches. Your CI pipeline should treat these security tests as gatekeepers; if they fail, the build fails. Finally, own the outcome. Your job isn't done when the code is merged. Monitor the staging and production environments closely after deployment. Watch for spikes in authentication errors and be ready to pivot if a configuration issue arises. Proactively communicate with the frontend team to ensure they understand the new error codes and token handling requirements. By combining rigorous upfront planning, modular design, exhaustive testing, and post-deployment vigilance, you will deliver a secure, reliable auth middleware that sets a high standard for the team.
+To execute this task at an Above Average level, you must shift your mindset from simply 'writing code that works' to 'designing a resilient security component.' Start by treating the requirements as a hypothesis; your first step is to validate the assumptions about token storage and role hierarchies with the security architect. Do not write a single line of code until you have a clear, agreed-upon mental model of how the refresh token rotation interacts with the API gateway's request lifecycle. When designing, explicitly choose between patterns (e.g., centralized validation vs. distributed) and document why you chose the one you did. This shows architectural maturity and prevents the 'reinventing the wheel' pitfall. During implementation, prioritize modularity. The middleware should be a thin orchestrator that delegates specific concerns—decoding, signature verification, role checking—to dedicated, testable units. This makes the code self-documenting and significantly easier to audit. Finally, own the outcome beyond the merge. Your definition of 'done' includes verifying that the middleware behaves correctly under load, that error logs are safe, and that the documentation is updated for the next engineer. By anticipating edge cases like clock skew or concurrent refresh requests during the design phase, you will deliver a solution that requires zero revisions and instills confidence in the team.

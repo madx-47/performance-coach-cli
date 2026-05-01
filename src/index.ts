@@ -154,7 +154,7 @@ import * as path from 'path';
 
 // ... (keep print functions)
 
-async function savePlaybookAsMarkdown(title: string, classification: ClassifierOutput, pb: PlaybookOutput): Promise<string> {
+async function savePlaybookAsMarkdown(title: string, description: string, classification: ClassifierOutput, pb: PlaybookOutput): Promise<string> {
   const folder = 'task-details';
   await fs.mkdir(folder, { recursive: true });
   
@@ -163,6 +163,10 @@ async function savePlaybookAsMarkdown(title: string, classification: ClassifierO
   
   let md = `# Task Playbook: ${title}\n\n`;
   
+  if (classification.dimensions.length > 0) {
+    md += `> **Task Description**: ${description || '(No description provided)'}\n\n`;
+  }
+
   md += `## 📊 Classification Breakdown\n\n`;
   md += `| Dimension | Confidence | Rationale |\n`;
   md += `| :--- | :--- | :--- |\n`;
@@ -264,7 +268,7 @@ async function main() {
 
   if (playbook && classification) {
     try {
-      const savedPath = await savePlaybookAsMarkdown(title, classification, playbook);
+      const savedPath = await savePlaybookAsMarkdown(title, description, classification, playbook);
       console.log(`\n${GREEN}✔ Playbook saved to:${RESET} ${BOLD}${savedPath}${RESET}`);
       console.log(`${DIM}Open this file to follow your implementation guide!${RESET}\n`);
     } catch (err) {
