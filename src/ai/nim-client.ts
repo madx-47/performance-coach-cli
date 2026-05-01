@@ -7,7 +7,7 @@ import {
 
 const API_KEY = process.env.NVIDIA_NIM_API_KEY;
 const BASE_URL = process.env.NVIDIA_NIM_BASE_URL ?? 'https://integrate.api.nvidia.com/v1';
-const DEFAULT_MODEL = process.env.NVIDIA_NIM_MODEL ?? 'meta/llama-3.1-70b-instruct';
+const DEFAULT_MODEL = process.env.NVIDIA_NIM_MODEL ?? 'qwen/qwen3.5-122b-a10b';
 const TIMEOUT_MS = 15*60*1_000;
 const MAX_RETRIES = 3;
 const RETRY_DELAYS = [500, 1_000, 2_000];
