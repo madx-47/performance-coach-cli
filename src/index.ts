@@ -2,7 +2,8 @@
 import 'dotenv/config';
 import { classifyTask } from './ai/classifier.js';
 import { generatePlaybook } from './ai/playbook.js';
-import type { ClassifierOutput, PlaybookOutput } from './types.js';
+import { generateGrowthPlugin } from './ai/growth-plugin.js';
+import type { ClassifierOutput, PlaybookOutput, GrowthPluginOutput } from './types.js';
 import process from 'node:process';
 
 const RESET = '\x1b[0m';
@@ -133,6 +134,26 @@ function displayPlaybook(pb: PlaybookOutput) {
   }
 }
 
+function displayGrowthPlugin(gp: GrowthPluginOutput) {
+  if (!gp.shouldDisplay || gp.growthPlugin.length === 0) {
+    return;
+  }
+
+  printSection('GROWTH PLUGIN: PERSONALIZED DEVELOPMENT AREAS', MAGENTA);
+  
+  for (const item of gp.growthPlugin) {
+    console.log(`\n${BOLD}${CYAN}▶ ${item.areaName}${RESET}`);
+    console.log(`${DIM}${'─'.repeat(60)}${RESET}`);
+    
+    console.log(`  ${BOLD}Focus:${RESET} ${item.whatNeedsImprovement}`);
+    console.log(`  ${BOLD}Why it matters:${RESET} ${item.whyThisMatters}`);
+    console.log(`  ${BOLD}How to improve:${RESET}`);
+    for (const step of item.howToImprove) {
+      printBullet(step, '    ▸');
+    }
+  }
+}
+
 function showUsage() {
   console.log(`
 ${BOLD}Performance Coach CLI${RESET}
@@ -154,7 +175,7 @@ import * as path from 'path';
 
 // ... (keep print functions)
 
-async function savePlaybookAsMarkdown(title: string, description: string, classification: ClassifierOutput, pb: PlaybookOutput): Promise<string> {
+async function savePlaybookAsMarkdown(title: string, description: string, classification: ClassifierOutput, pb: PlaybookOutput, growthPlugin?: GrowthPluginOutput): Promise<string> {
   const folder = 'task-details';
   await fs.mkdir(folder, { recursive: true });
   
@@ -212,6 +233,21 @@ async function savePlaybookAsMarkdown(title: string, description: string, classi
   md += `\n## 📖 Mentor Guide\n\n`;
   md += pb.completionGuide;
 
+  // Add Growth Plugin section after Mentor Guide if applicable
+  if (growthPlugin && growthPlugin.shouldDisplay && growthPlugin.growthPlugin.length > 0) {
+    md += `\n\n## 🌱 Growth Plugin: Personalized Development Areas\n\n`;
+    md += `> These growth areas have been identified as particularly relevant to this specific task.\n\n`;
+    
+    for (const item of growthPlugin.growthPlugin) {
+      md += `### ${item.areaName}\n\n`;
+      md += `**Focus:** ${item.whatNeedsImprovement}\n\n`;
+      md += `**Why this matters:** ${item.whyThisMatters}\n\n`;
+      md += `**How to improve:**\n`;
+      item.howToImprove.forEach(step => md += `- ${step}\n`);
+      md += `\n---\n\n`;
+    }
+  }
+
   await fs.writeFile(filepath, md);
   return filepath;
 }
@@ -267,8 +303,23 @@ async function main() {
   }
 
   if (playbook && classification) {
+    // Step 3: Growth Plugin generation (optional, only when relevant)
+    console.log(`${DIM}Evaluating growth opportunities...${RESET}`);
+    let growthPlugin: GrowthPluginOutput | undefined;
     try {
-      const savedPath = await savePlaybookAsMarkdown(title, description, classification, playbook);
+      growthPlugin = await generateGrowthPlugin(title, description, classification.dimensions);
+      
+      // Display growth plugin if applicable
+      if (growthPlugin && growthPlugin.shouldDisplay) {
+        displayGrowthPlugin(growthPlugin);
+      }
+    } catch (err) {
+      console.warn(`${YELLOW}⚠ Growth Plugin evaluation skipped:${RESET}`, err instanceof Error ? err.message : err);
+      growthPlugin = undefined;
+    }
+
+    try {
+      const savedPath = await savePlaybookAsMarkdown(title, description, classification, playbook, growthPlugin);
       console.log(`\n${GREEN}✔ Playbook saved to:${RESET} ${BOLD}${savedPath}${RESET}`);
       console.log(`${DIM}Open this file to follow your implementation guide!${RESET}\n`);
     } catch (err) {
