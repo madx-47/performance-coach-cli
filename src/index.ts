@@ -303,12 +303,15 @@ async function main() {
   }
 
   if (playbook && classification) {
+    // Display the Mentor Guide
+    displayPlaybook(playbook);
+
     // Step 3: Growth Plugin generation (optional, only when relevant)
     console.log(`${DIM}Evaluating growth opportunities...${RESET}`);
     let growthPlugin: GrowthPluginOutput | undefined;
     try {
       growthPlugin = await generateGrowthPlugin(title, description, classification.dimensions);
-      
+
       // Display growth plugin if applicable
       if (growthPlugin && growthPlugin.shouldDisplay) {
         displayGrowthPlugin(growthPlugin);

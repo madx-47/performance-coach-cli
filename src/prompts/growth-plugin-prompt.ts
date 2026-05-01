@@ -1,5 +1,3 @@
-import type { DimensionResult } from '../types.js';
-
 export const GROWTH_PLUGIN_PROMPT = `You are a senior engineering coach specializing in professional growth and career development.
 
 ## Your Task
