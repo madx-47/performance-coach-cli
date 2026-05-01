@@ -149,6 +149,69 @@ Environment:
 `);
 }
 
+import * as fs from 'fs/promises';
+import * as path from 'path';
+
+// ... (keep print functions)
+
+async function savePlaybookAsMarkdown(title: string, classification: ClassifierOutput, pb: PlaybookOutput): Promise<string> {
+  const folder = 'task-details';
+  await fs.mkdir(folder, { recursive: true });
+  
+  const filename = `${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.md`;
+  const filepath = path.join(folder, filename);
+  
+  let md = `# Task Playbook: ${title}\n\n`;
+  
+  md += `## 📊 Classification Breakdown\n\n`;
+  md += `| Dimension | Confidence | Rationale |\n`;
+  md += `| :--- | :--- | :--- |\n`;
+  for (const d of classification.dimensions) {
+    const isPrimary = d.dimension === classification.primaryDimension;
+    md += `| ${isPrimary ? '**' : ''}${d.dimension.toUpperCase().replace(/_/g, ' ')}${isPrimary ? ' (Primary)**' : ''} | ${Math.round(d.confidence * 100)}% | ${d.rationale} |\n`;
+  }
+  md += `\n`;
+
+  md += `## 🛠 Implementation Strategy\n\n`;
+
+  for (const dim of pb.dimensions) {
+    md += `### 🎯 ${dim.dimension.toUpperCase().replace(/_/g, ' ')}\n\n`;
+    
+    md += `#### ✅ Above Average Behaviors\n`;
+    dim.aboveAverage.forEach(item => md += `- ${item}\n`);
+    
+    md += `\n#### ★ Outstanding Stretch Goals\n`;
+    dim.outstanding.forEach(item => md += `- ${item}\n`);
+    
+    md += `\n#### ⚠ Pitfalls to Avoid\n`;
+    dim.pitfalls.forEach(item => md += `- ${item}\n`);
+    
+    md += `\n#### 💡 Coaching Nudge\n`;
+    dim.personalHooks.forEach(item => md += `- ${item}\n`);
+    md += `\n---\n\n`;
+  }
+
+  md += `## 📋 Checklists\n\n`;
+  
+  md += `### 1️⃣ Planning (Before Starting)\n`;
+  pb.planningChecklist.forEach(item => md += `- [ ] ${item}\n`);
+  
+  md += `\n### 2️⃣ Execution (While Implementing)\n`;
+  pb.executionChecklist.forEach(item => md += `- [ ] ${item}\n`);
+  
+  md += `\n### 3️⃣ Pre-PR (Before Review)\n`;
+  pb.prePRChecklist.forEach(item => md += `- [ ] ${item}\n`);
+
+  md += `\n## 🚀 Growth Nudges\n\n`;
+  pb.growthNudges.forEach(n => md += `- **${n.trigger}**: ${n.message}\n`);
+
+  md += `\n## 📖 Mentor Guide\n\n`;
+  md += pb.completionGuide;
+
+  await fs.writeFile(filepath, md);
+  return filepath;
+}
+
 async function main() {
   const args = process.argv.slice(2);
 
@@ -198,12 +261,21 @@ async function main() {
     console.error(`\n${RED}✖ Playbook generation failed:${RESET}`, err instanceof Error ? err.message : err);
     process.exit(1);
   }
-  if (playbook) {
-    displayPlaybook(playbook);
+
+  if (playbook && classification) {
+    try {
+      const savedPath = await savePlaybookAsMarkdown(title, classification, playbook);
+      console.log(`\n${GREEN}✔ Playbook saved to:${RESET} ${BOLD}${savedPath}${RESET}`);
+      console.log(`${DIM}Open this file to follow your implementation guide!${RESET}\n`);
+    } catch (err) {
+      console.error(`\n${RED}✖ Failed to save playbook file:${RESET}`, err instanceof Error ? err.message : err);
+      process.exit(1);
+    }
   }
 
   printHeader('READY TO EXECUTE — GO GET IT! 🚀');
 }
+
 
 main().catch(err => {
   console.error(`${RED}Unexpected error:${RESET}`, err);
