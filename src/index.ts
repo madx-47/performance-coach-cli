@@ -2,8 +2,11 @@
 import 'dotenv/config';
 import { classifyTask } from './ai/classifier.js';
 import { generatePlaybook } from './ai/playbook.js';
-import type { ClassifierOutput, PlaybookOutput } from './types.js';
+import { generateGrowthPlugin } from './ai/growth-plugin.js';
+import type { ClassifierOutput, PlaybookOutput, GrowthPluginOutput } from './types.js';
 import process from 'node:process';
+import * as fs from 'fs/promises';
+import * as path from 'path';
 
 const RESET = '\x1b[0m';
 const BOLD = '\x1b[1m';
@@ -13,7 +16,6 @@ const YELLOW = '\x1b[33m';
 const RED = '\x1b[31m';
 const BLUE = '\x1b[34m';
 const CYAN = '\x1b[36m';
-const MAGENTA = '\x1b[35m';
 
 function printHeader(text: string) {
   console.log(`\n${BOLD}${BLUE}══════════════════════════════════════════════════════════════${RESET}`);
@@ -28,18 +30,6 @@ function printSection(title: string, color: string = CYAN) {
 
 function printBullet(text: string, prefix: string = '  •') {
   console.log(`${prefix} ${text}`);
-}
-
-function printCheck(text: string) {
-  console.log(`  ${GREEN}✓${RESET} ${text}`);
-}
-
-function printWarn(text: string) {
-  console.log(`  ${YELLOW}⚠${RESET} ${text}`);
-}
-
-function printNudge(text: string) {
-  console.log(`  ${MAGENTA}💡${RESET} ${text}`);
 }
 
 function printDimensionBadge(dim: string, confidence: number) {
@@ -70,92 +60,14 @@ function displayClassification(result: ClassifierOutput) {
   }
 }
 
-function displayPlaybook(pb: PlaybookOutput) {
-  printSection('YOUR COMPLETION PLAYBOOK', BLUE);
-
-  // Dimension-specific guidance
-  for (const dim of pb.dimensions) {
-    printSection(dim.dimension.toUpperCase().replace(/_/g, ' '), CYAN);
-
-    if (dim.aboveAverage.length) {
-      console.log(`  ${BOLD}${GREEN}Above Average Behaviors:${RESET}`);
-      for (const item of dim.aboveAverage) printCheck(item);
-    }
-
-    if (dim.outstanding.length) {
-      console.log(`\n  ${BOLD}Outstanding Stretch:${RESET}`);
-      for (const item of dim.outstanding) printBullet(item, '    ★');
-    }
-
-    if (dim.pitfalls.length) {
-      console.log(`\n  ${BOLD}${RED}Pitfalls to Avoid:${RESET}`);
-      for (const item of dim.pitfalls) printWarn(item);
-    }
-
-    if (dim.personalHooks.length) {
-      console.log(`\n  ${BOLD}${MAGENTA}Coaching Nudge:${RESET}`);
-      for (const item of dim.personalHooks) printNudge(item);
-    }
-  }
-
-  // Checklists
-  if (pb.planningChecklist.length) {
-    printSection('PLANNING CHECKLIST (Before You Start)', YELLOW);
-    for (const item of pb.planningChecklist) printCheck(item);
-  }
-
-  if (pb.executionChecklist.length) {
-    printSection('EXECUTION CHECKLIST (While Coding)', GREEN);
-    for (const item of pb.executionChecklist) printCheck(item);
-  }
-
-  if (pb.prePRChecklist.length) {
-    printSection('PRE-PR CHECKLIST (Before Review)', CYAN);
-    for (const item of pb.prePRChecklist) printCheck(item);
-  }
-
-  // Growth nudges
-  if (pb.growthNudges.length) {
-    printSection('GROWTH NUDGES', MAGENTA);
-    for (const n of pb.growthNudges) {
-      printNudge(`${n.trigger}: ${n.message}`);
-    }
-  }
-
-  // Completion guide
-  if (pb.completionGuide) {
-    printSection('MENTOR GUIDE: HOW TO COMPLETE THIS TASK', BLUE);
-    const paragraphs = pb.completionGuide.split('\n').filter(p => p.trim());
-    for (const para of paragraphs) {
-      console.log(`  ${para.trim()}`);
-      console.log();
-    }
-  }
-}
-
-function showUsage() {
-  console.log(`
-${BOLD}Performance Coach CLI${RESET}
-
-Usage:
-  npm run dev -- "<task title>" "<task description>"
-
-Examples:
-  npm run dev -- "Fix memory leak in parser" "Users report high memory usage after parsing large files. Need to identify root cause and implement fix."
-  npm run dev -- "Design auth middleware" "Create JWT-based auth middleware for the API gateway. Must handle refresh tokens and role-based access."
-
-Environment:
-  Create a .env file with NVIDIA_NIM_API_KEY=your_key_here
-`);
-}
-
-import * as fs from 'fs/promises';
-import * as path from 'path';
-
-// ... (keep print functions)
-
-async function savePlaybookAsMarkdown(title: string, description: string, classification: ClassifierOutput, pb: PlaybookOutput): Promise<string> {
-  const folder = 'task-details';
+async function savePlaybookAsMarkdown(
+  title: string, 
+  description: string, 
+  classification: ClassifierOutput, 
+  pb: PlaybookOutput,
+  growth: GrowthPluginOutput
+): Promise<string> {
+  const folder = 'task-reports';
   await fs.mkdir(folder, { recursive: true });
   
   const filename = `${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.md`;
@@ -211,9 +123,45 @@ async function savePlaybookAsMarkdown(title: string, description: string, classi
 
   md += `\n## 📖 Mentor Guide\n\n`;
   md += pb.completionGuide;
+  md += `\n\n`;
+
+  // Growth Plugin Section
+  if (growth.shouldDisplay && growth.growthPlugin.length > 0) {
+    md += `---\n\n`;
+    md += `## Performance Review – Areas for Improvement & Growth Plan\n\n`;
+    
+    for (const item of growth.growthPlugin) {
+      md += `### ${item.areaName}\n\n`;
+      md += `#### 🔴 What needs improvement:\n`;
+      md += `${item.whatNeedsImprovement}\n\n`;
+      
+      md += `#### ❓ Why this matters:\n`;
+      md += `${item.whyThisMatters}\n\n`;
+      
+      md += `#### 📈 How to improve:\n`;
+      item.howToImprove.forEach(h => md += `- ${h}\n`);
+      md += `\n`;
+    }
+  }
 
   await fs.writeFile(filepath, md);
   return filepath;
+}
+
+function showUsage() {
+  console.log(`
+${BOLD}Performance Coach CLI${RESET}
+
+Usage:
+  npm run dev -- "<task title>" "<task description>"
+
+Examples:
+  npm run dev -- "Fix memory leak in parser" "Users report high memory usage after parsing large files."
+  npm run dev -- "Design auth middleware" "Create JWT-based auth middleware for the API gateway."
+
+Environment:
+  Create a .env file with NVIDIA_NIM_API_KEY=your_key_here
+`);
 }
 
 async function main() {
@@ -228,7 +176,6 @@ async function main() {
     console.error(`\n${RED}✖ Missing NVIDIA_NIM_API_KEY${RESET}`);
     console.log(`Please create a ${BOLD}.env${RESET} file with:`);
     console.log(`${CYAN}NVIDIA_NIM_API_KEY=your_key_here${RESET}`);
-    console.log(`\nYou can get a key at: ${BLUE}https://build.nvidia.com/explore/discover${RESET}`);
     process.exit(1);
   }
 
@@ -266,9 +213,21 @@ async function main() {
     process.exit(1);
   }
 
-  if (playbook && classification) {
+  // Step 3: Growth Plugin
+  console.log(`\n${DIM}Analyzing career growth opportunities...${RESET}`);
+  let growth: GrowthPluginOutput | undefined;
+  try {
+    if (classification) {
+      growth = await generateGrowthPlugin(title, description, classification.dimensions);
+    }
+  } catch (err) {
+    console.warn(`\n${YELLOW}⚠ Growth Plugin failed (skipping):${RESET}`, err instanceof Error ? err.message : err);
+    growth = { growthPlugin: [], shouldDisplay: false };
+  }
+
+  if (playbook && classification && growth) {
     try {
-      const savedPath = await savePlaybookAsMarkdown(title, description, classification, playbook);
+      const savedPath = await savePlaybookAsMarkdown(title, description, classification, playbook, growth);
       console.log(`\n${GREEN}✔ Playbook saved to:${RESET} ${BOLD}${savedPath}${RESET}`);
       console.log(`${DIM}Open this file to follow your implementation guide!${RESET}\n`);
     } catch (err) {
@@ -279,7 +238,6 @@ async function main() {
 
   printHeader('READY TO EXECUTE — GO GET IT! 🚀');
 }
-
 
 main().catch(err => {
   console.error(`${RED}Unexpected error:${RESET}`, err);

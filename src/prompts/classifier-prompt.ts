@@ -33,7 +33,7 @@ For each dimension that is relevant (high or medium confidence):
 
 Also identify:
 - primaryDimension: the single most relevant dimension for this specific task.
-- secondaryDimensions: other relevant dimensions (ALWAYS include commitment_ownership).
+- secondaryDimensions: other relevant dimensions.
 
 Respond ONLY with valid JSON in this exact shape (no markdown, no explanation):
 {
