@@ -42,7 +42,7 @@ export async function generateGrowthPlugin(
   const rawGrowthPlugin = obj.growthPlugin;
   const growthPluginArray = Array.isArray(rawGrowthPlugin) ? rawGrowthPlugin : [];
 
-  const growthPluginItems: GrowthPluginItem[] = growthPluginArray.map((item: unknown, idx: number) => {
+  const growthPluginItems: GrowthPluginItem[] = growthPluginArray.map((item: unknown) => {
     if (!item || typeof item !== 'object') {
       return null;
     }
