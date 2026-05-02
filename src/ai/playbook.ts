@@ -13,7 +13,7 @@ export async function generatePlaybook(
   const res = await callNim({
     userPrompt: prompt,
     temperature: 0.7,
-    maxTokens: 32500,
+    maxTokens: 8000,
   });
 
   let parsed: unknown;

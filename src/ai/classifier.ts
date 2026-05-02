@@ -14,7 +14,7 @@ export async function classifyTask(title: string, description: string): Promise<
   const res = await callNim({
     userPrompt: prompt,
     temperature: 0.3,
-    maxTokens: 1200,
+    maxTokens: 4096,
   });
 
   let parsed: unknown;
@@ -61,11 +61,6 @@ export async function classifyTask(title: string, description: string): Promise<
   const secondary = Array.isArray(obj.secondaryDimensions)
     ? obj.secondaryDimensions.map(String).filter(validateDimension)
     : [];
-
-  // Ensure commitment_ownership is present
-  if (!secondary.includes('commitment_ownership') && primary !== 'commitment_ownership') {
-    secondary.push('commitment_ownership');
-  }
 
   return {
     dimensions,

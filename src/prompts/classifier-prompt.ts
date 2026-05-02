@@ -14,7 +14,7 @@ Task Title: ${title}
 Task Description: ${description || '(none provided)'}
 
 ## Rules for Classification
-1. Every task automatically gets "commitment_ownership" as a secondary dimension (it is cross-cutting).
+1. "commitment_ownership" is triggered by: reliability, accountability, follow-through, delivery,deadline, outcome, ownership.
 2. "continuous_learning" is triggered by: spike, investigate, research, learn, study, understand, fundamentals.
 3. "interpersonal_skills" is triggered by: discuss, align, sync, collaborate, communicate, review with, meeting, present.
 4. "troubleshooting_fix" is triggered by: bug, performance, memory, slow, crash, fix, debug, regression.
