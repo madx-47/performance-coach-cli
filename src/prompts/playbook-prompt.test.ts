@@ -30,5 +30,7 @@ describe('buildPlaybookPrompt', () => {
     RUBRIC.planning.pitfalls.forEach(pitfall => {
       expect(prompt).toContain(pitfall);
     });
+
+    expect(prompt).toContain('estimatedTimeline');
   });
 });

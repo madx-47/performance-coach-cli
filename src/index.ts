@@ -75,9 +75,8 @@ async function savePlaybookAsMarkdown(
   
   let md = `# Task Playbook: ${title}\n\n`;
   
-  if (classification.dimensions.length > 0) {
-    md += `> **Task Description**: ${description || '(No description provided)'}\n\n`;
-  }
+  md += `> **Task Description**: ${description || '(No description provided)'}\n`;
+  md += `> **Estimated Timeline**: ${pb.estimatedTimeline}\n\n`;
 
   md += `## 📊 Classification Breakdown\n\n`;
   md += `| Dimension | Confidence | Rationale |\n`;
@@ -226,6 +225,7 @@ async function main() {
   }
 
   if (playbook && classification && growth) {
+    console.log(`\n${BOLD}Estimated Timeline:${RESET} ${playbook.estimatedTimeline}`);
     try {
       const savedPath = await savePlaybookAsMarkdown(title, description, classification, playbook, growth);
       console.log(`\n${GREEN}✔ Playbook saved to:${RESET} ${BOLD}${savedPath}${RESET}`);
