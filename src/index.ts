@@ -7,6 +7,7 @@ import type { ClassifierOutput, PlaybookOutput, GrowthPluginOutput } from './typ
 import process from 'node:process';
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import { buildPlaybookMarkdown, generateFilename } from './reporting/markdown-builder.js';
 
 const RESET = '\x1b[0m';
 const BOLD = '\x1b[1m';
@@ -60,91 +61,103 @@ function displayClassification(result: ClassifierOutput) {
   }
 }
 
-async function savePlaybookAsMarkdown(
-  title: string, 
-  description: string, 
-  classification: ClassifierOutput, 
-  pb: PlaybookOutput,
-  growth: GrowthPluginOutput
-): Promise<string> {
-  const folder = 'task-reports';
-  await fs.mkdir(folder, { recursive: true });
-  
-  const filename = `${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.md`;
-  const filepath = path.join(folder, filename);
-  
-  let md = `# Task Playbook: ${title}\n\n`;
-  
-  if (classification.dimensions.length > 0) {
-    md += `> **Task Description**: ${description || '(No description provided)'}\n\n`;
-  }
+function displayPlaybook(pb: PlaybookOutput) {
+  printSection('YOUR COMPLETION PLAYBOOK', BLUE);
 
-  md += `## 📊 Classification Breakdown\n\n`;
-  md += `| Dimension | Confidence | Rationale |\n`;
-  md += `| :--- | :--- | :--- |\n`;
-  for (const d of classification.dimensions) {
-    const isPrimary = d.dimension === classification.primaryDimension;
-    md += `| ${isPrimary ? '**' : ''}${d.dimension.toUpperCase().replace(/_/g, ' ')}${isPrimary ? ' (Primary)**' : ''} | ${Math.round(d.confidence * 100)}% | ${d.rationale} |\n`;
-  }
-  md += `\n`;
-
-  md += `## 🛠 Implementation Strategy\n\n`;
-
+  // Dimension specific guidance
   for (const dim of pb.dimensions) {
-    md += `### 🎯 ${dim.dimension.toUpperCase().replace(/_/g, ' ')}\n\n`;
-    
-    md += `#### ✅ Above Average Behaviors\n`;
-    dim.aboveAverage.forEach(item => md += `- ${item}\n`);
-    
-    md += `\n#### ★ Outstanding Stretch Goals\n`;
-    dim.outstanding.forEach(item => md += `- ${item}\n`);
-    
-    md += `\n#### ⚠ Pitfalls to Avoid\n`;
-    dim.pitfalls.forEach(item => md += `- ${item}\n`);
-    
-    md += `\n#### 💡 Coaching Nudge\n`;
-    dim.personalHooks.forEach(item => md += `- ${item}\n`);
-    md += `\n---\n\n`;
-  }
+    printSection(dim.dimension.toUpperCase().replace(/_/g, ' '), CYAN);
 
-  md += `## 📋 Checklists\n\n`;
-  
-  md += `### 1️⃣ Planning (Before Starting)\n`;
-  pb.planningChecklist.forEach(item => md += `- [ ] ${item}\n`);
-  
-  md += `\n### 2️⃣ Execution (While Implementing)\n`;
-  pb.executionChecklist.forEach(item => md += `- [ ] ${item}\n`);
-  
-  md += `\n### 3️⃣ Pre-PR (Before Review)\n`;
-  pb.prePRChecklist.forEach(item => md += `- [ ] ${item}\n`);
+    if (dim.aboveAverage.length) {
+      console.log(`  ${BOLD}${GREEN}Above Average Behaviors:${RESET}`);
+      for (const item of dim.aboveAverage) printCheck(item);
+    }
 
-  md += `\n## 🚀 Growth Nudges\n\n`;
-  pb.growthNudges.forEach(n => md += `- **${n.trigger}**: ${n.message}\n`);
+    if (dim.outstanding.length) {
+      console.log(`\n  ${BOLD}Outstanding Stretch:${RESET}`);
+      for (const item of dim.outstanding) printBullet(item, '    ★');
+    }
 
-  md += `\n## 📖 Mentor Guide\n\n`;
-  md += pb.completionGuide;
-  md += `\n\n`;
+    if (dim.pitfalls.length) {
+      console.log(`\n  ${BOLD}${RED}Pitfalls to Avoid:${RESET}`);
+      for (const item of dim.pitfalls) printWarn(item);
+    }
 
-  // Growth Plugin Section
-  if (growth.shouldDisplay && growth.growthPlugin.length > 0) {
-    md += `---\n\n`;
-    md += `## Performance Review – Areas for Improvement & Growth Plan\n\n`;
-    
-    for (const item of growth.growthPlugin) {
-      md += `### ${item.areaName}\n\n`;
-      md += `#### 🔴 What needs improvement:\n`;
-      md += `${item.whatNeedsImprovement}\n\n`;
-      
-      md += `#### ❓ Why this matters:\n`;
-      md += `${item.whyThisMatters}\n\n`;
-      
-      md += `#### 📈 How to improve:\n`;
-      item.howToImprove.forEach(h => md += `- ${h}\n`);
-      md += `\n`;
+    if (dim.personalHooks.length) {
+      console.log(`\n  ${BOLD}${MAGENTA}Coaching Nudge:${RESET}`);
+      for (const item of dim.personalHooks) printNudge(item);
     }
   }
 
-  await fs.writeFile(filepath, md);
+  // Checklists
+  if (pb.planningChecklist.length) {
+    printSection('PLANNING CHECKLIST (Before You Start)', YELLOW);
+    for (const item of pb.planningChecklist) printCheck(item);
+  }
+
+  if (pb.executionChecklist.length) {
+    printSection('EXECUTION CHECKLIST (While Coding)', GREEN);
+    for (const item of pb.executionChecklist) printCheck(item);
+  }
+
+  if (pb.prePRChecklist.length) {
+    printSection('PRE-PR CHECKLIST (Before Review)', CYAN);
+    for (const item of pb.prePRChecklist) printCheck(item);
+  }
+
+  // Growth nudges
+  if (pb.growthNudges.length) {
+    printSection('GROWTH NUDGES', MAGENTA);
+    for (const n of pb.growthNudges) {
+      printNudge(`${n.trigger}: ${n.message}`);
+    }
+  }
+
+  // Completion guide
+  if (pb.completionGuide) {
+    printSection('MENTOR GUIDE: HOW TO COMPLETE THIS TASK', BLUE);
+    const paragraphs = pb.completionGuide.split('\n').filter(p => p.trim());
+    for (const para of paragraphs) {
+      console.log(`  ${para.trim()}`);
+      console.log();
+    }
+  }
+}
+
+function showUsage() {
+  console.log(`
+${BOLD}Performance Coach CLI${RESET}
+
+Usage:
+  npm run dev -- "<task title>" "<task description>"
+
+Examples:
+  npm run dev -- "Fix memory leak in parser" "Users report high memory usage after parsing large files. Need to identify root cause and implement fix."
+  npm run dev -- "Design auth middleware" "Create JWT-based auth middleware for the API gateway. Must handle refresh tokens and role-based access."
+
+Environment:
+  Create a .env file with NVIDIA_NIM_API_KEY=your_key_here
+`);
+}
+
+async function savePlaybookAsMarkdown(title: string, description: string, classification: ClassifierOutput, pb: PlaybookOutput): Promise<string> {
+  const folder = 'task-reports';
+  await fs.mkdir(folder, { recursive: true });
+  
+  // Get existing files for collision handling
+  let existingFiles: string[] = [];
+  try {
+    existingFiles = await fs.readdir(folder);
+  } catch {
+    // Folder doesn't exist yet or can't be read - that's fine
+  }
+  
+  const filename = generateFilename(title, existingFiles);
+  const filepath = path.join(folder, filename);
+  
+  const markdownContent = buildPlaybookMarkdown(title, description, classification, pb);
+  
+  await fs.writeFile(filepath, markdownContent);
   return filepath;
 }
 
