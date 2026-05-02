@@ -59,6 +59,7 @@ export async function generatePlaybook(
           return { trigger: String(nn.trigger ?? ''), message: String(nn.message ?? '') };
         })
       : [],
+    estimatedTimeline: String(obj.estimatedTimeline ?? 'Not specified'),
     completionGuide: String(obj.completionGuide ?? ''),
   };
 

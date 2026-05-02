@@ -43,6 +43,7 @@ Also provide:
 - executionChecklist: 4-5 items to verify while implementing
 - prePRChecklist: 5-6 items before requesting code review
 - growthNudges: 2-3 contextual reminders (e.g., "Communicate dependencies early", "Set personal timeline") with a "trigger" (when to think about it) and "message"
+- estimatedTimeline: A concise estimate of how long this task should take (e.g., "2-4 hours", "2 days", "1 week") based on the task description and complexity.
 - completionGuide: A 3-4 paragraph narrative guide explaining HOW to approach this task to hit Above Average, written like a mentor giving advice. Be specific to the task, not generic.
 
 Respond ONLY with valid JSON in this exact shape (no markdown, no explanation):
@@ -62,6 +63,7 @@ Respond ONLY with valid JSON in this exact shape (no markdown, no explanation):
   "growthNudges": [
     { "trigger": "...", "message": "..." }
   ],
+  "estimatedTimeline": "...",
   "completionGuide": "..."
 }`;
 }

@@ -49,6 +49,7 @@ export interface PlaybookOutput {
   executionChecklist: string[];
   prePRChecklist: string[];
   growthNudges: { trigger: string; message: string }[];
+  estimatedTimeline: string;
   completionGuide: string; // Narrative guide for the task
 }
 
