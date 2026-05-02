@@ -208,5 +208,10 @@ export async function processTask(title: string, description: string = '') {
 
 // Support running directly via 'npm run dev' or 'tsx src/index.ts'
 if (import.meta.url.endsWith(process.argv[1]) || process.argv[1]?.endsWith('index.ts') || process.argv[1]?.endsWith('index.js')) {
-  import('./repl.js').then(({ startRepl }) => startRepl());
+  import('./repl.js')
+    .then(({ startRepl }) => startRepl())
+    .catch((err) => {
+      console.error('Failed to start interactive session:', err);
+      process.exit(1);
+    });
 }

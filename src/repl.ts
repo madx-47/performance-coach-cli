@@ -1,18 +1,14 @@
 import * as p from '@clack/prompts';
 import color from 'picocolors';
-import config from './config.js';
+import config, { SUPPORTED_MODELS } from './config.js';
 import { processTask } from './index.js';
 import path from 'path';
-
-const MODELS = [
-  'qwen/qwen3.5-122b-a10b'
-];
 
 export async function startRepl() {
   p.intro(`${color.bgCyan(color.black(' AI PERFORMANCE COACH '))}`);
 
-  // Initial check for API Key
-  if (!config.get('nimApiKey')) {
+  // Initial check for API Key (also check environment)
+  if (!config.get('nimApiKey') && !process.env.NVIDIA_NIM_API_KEY) {
     p.note(color.yellow('No NVIDIA NIM API Key found. Let\'s set it up!'));
     await handleConnect();
   }
@@ -48,7 +44,7 @@ export async function startRepl() {
   }
 }
 
-async function handleConnect() {
+export async function handleConnect() {
   const apiKey = await p.password({
     message: 'Enter your NVIDIA NIM API Key:',
     validate: (value) => {
@@ -65,7 +61,7 @@ async function handleConnect() {
 async function handleModel() {
   const selectedModel = await p.select({
     message: 'Select an AI model to use:',
-    options: MODELS.map(m => ({ value: m, label: m })),
+    options: SUPPORTED_MODELS.map(m => ({ value: m, label: m })),
     initialValue: config.get('model')
   });
 
@@ -105,7 +101,7 @@ async function handleTask(initialTitle: string) {
 
   p.log.step(color.cyan('Entering task description. Press Enter for newline, press Enter on an empty line to submit.'));
   
-  let lines: string[] = [];
+  const lines: string[] = [];
   while (true) {
     const line = await p.text({
       message: lines.length === 0 ? 'Description:' : '',

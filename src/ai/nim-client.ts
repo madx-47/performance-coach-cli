@@ -53,10 +53,10 @@ export async function callNim(req: NimRequest): Promise<NimResponse> {
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     const start = Date.now();
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
+    try {
       const res = await fetch(url, {
         method: 'POST',
         headers: {
@@ -67,7 +67,6 @@ export async function callNim(req: NimRequest): Promise<NimResponse> {
         signal: controller.signal,
       });
 
-      clearTimeout(timeoutId);
       const latencyMs = Date.now() - start;
 
       if (!res.ok) {
@@ -117,6 +116,8 @@ export async function callNim(req: NimRequest): Promise<NimResponse> {
         log('info', `Retrying in ${delay}ms...`);
         await new Promise(r => setTimeout(r, delay));
       }
+    } finally {
+      clearTimeout(timeoutId);
     }
   }
 

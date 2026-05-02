@@ -24,7 +24,7 @@ To use `ai-coach` globally on your machine:
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/your-username/performance-coach-cli.git
+   git clone https://github.com/madx-47/performance-coach-cli.git
    cd performance-coach-cli
    ```
 

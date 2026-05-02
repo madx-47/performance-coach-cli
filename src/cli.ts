@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
-import { startRepl } from './repl.js';
-import config from './config.js';
+import { startRepl, handleConnect } from './repl.js';
 
 const program = new Command();
 
@@ -21,10 +20,7 @@ program
   .command('connect')
   .description('Set NVIDIA NIM API Key')
   .action(async () => {
-    // We can just start the repl and it will handle it, 
-    // or we can implement a direct command if needed.
-    // For now, let's just start the REPL as it's the main flow.
-    await startRepl();
+    await handleConnect();
   });
 
 program.parse(process.argv);
