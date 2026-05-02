@@ -1,5 +1,5 @@
-#!/usr/bin/env node
 import 'dotenv/config';
+import config from './config.js';
 import { classifyTask } from './ai/classifier.js';
 import { generatePlaybook } from './ai/playbook.js';
 import { generateGrowthPlugin } from './ai/growth-plugin.js';
@@ -67,7 +67,7 @@ async function savePlaybookAsMarkdown(
   pb: PlaybookOutput,
   growth: GrowthPluginOutput
 ): Promise<string> {
-  const folder = 'task-reports';
+  const folder = config.get('reportsDir');
   await fs.mkdir(folder, { recursive: true });
   
   const filename = `${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.md`;
@@ -147,40 +147,7 @@ async function savePlaybookAsMarkdown(
   return filepath;
 }
 
-function showUsage() {
-  console.log(`
-${BOLD}Performance Coach CLI${RESET}
-
-Usage:
-  npm run dev -- "<task title>" "<task description>"
-
-Examples:
-  npm run dev -- "Fix memory leak in parser" "Users report high memory usage after parsing large files."
-  npm run dev -- "Design auth middleware" "Create JWT-based auth middleware for the API gateway."
-
-Environment:
-  Create a .env file with NVIDIA_NIM_API_KEY=your_key_here
-`);
-}
-
-async function main() {
-  const args = process.argv.slice(2);
-
-  if (args.length === 0 || args.includes('--help') || args.includes('-h')) {
-    showUsage();
-    process.exit(0);
-  }
-
-  if (!process.env.NVIDIA_NIM_API_KEY) {
-    console.error(`\n${RED}✖ Missing NVIDIA_NIM_API_KEY${RESET}`);
-    console.log(`Please create a ${BOLD}.env${RESET} file with:`);
-    console.log(`${CYAN}NVIDIA_NIM_API_KEY=your_key_here${RESET}`);
-    process.exit(1);
-  }
-
-  const title = args[0];
-  const description = args[1] || '';
-
+export async function processTask(title: string, description: string = '') {
   printHeader('PERFORMANCE COACH — TASK INTAKE');
   console.log(`${BOLD}Task:${RESET} ${title}`);
   if (description) {
@@ -194,7 +161,7 @@ async function main() {
     classification = await classifyTask(title, description);
   } catch (err) {
     console.error(`\n${RED}✖ Classification failed:${RESET}`, err instanceof Error ? err.message : err);
-    process.exit(1);
+    throw err;
   }
   if (classification) {
     displayClassification(classification);
@@ -209,7 +176,7 @@ async function main() {
     }
   } catch (err) {
     console.error(`\n${RED}✖ Playbook generation failed:${RESET}`, err instanceof Error ? err.message : err);
-    process.exit(1);
+    throw err;
   }
 
   // Step 3: Growth Plugin
@@ -230,16 +197,21 @@ async function main() {
       const savedPath = await savePlaybookAsMarkdown(title, description, classification, playbook, growth);
       console.log(`\n${GREEN}✔ Playbook saved to:${RESET} ${BOLD}${savedPath}${RESET}`);
       console.log(`${DIM}Open this file to follow your implementation guide!${RESET}\n`);
+      printHeader('READY TO EXECUTE — GO GET IT! 🚀');
+      return savedPath;
     } catch (err) {
       console.error(`\n${RED}✖ Failed to save playbook file:${RESET}`, err instanceof Error ? err.message : err);
-      process.exit(1);
+      throw err;
     }
   }
-
-  printHeader('READY TO EXECUTE — GO GET IT! 🚀');
 }
 
-main().catch(err => {
-  console.error(`${RED}Unexpected error:${RESET}`, err);
-  process.exit(1);
-});
+// Support running directly via 'npm run dev' or 'tsx src/index.ts'
+if (import.meta.url.endsWith(process.argv[1]) || process.argv[1]?.endsWith('index.ts') || process.argv[1]?.endsWith('index.js')) {
+  import('./repl.js')
+    .then(({ startRepl }) => startRepl())
+    .catch((err) => {
+      console.error('Failed to start interactive session:', err);
+      process.exit(1);
+    });
+}
