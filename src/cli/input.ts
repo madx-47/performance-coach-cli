@@ -1,4 +1,3 @@
-import process from 'node:process';
 import { createInterface, type Interface } from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 
@@ -53,7 +52,7 @@ export async function collectTaskInput(args: string[]): Promise<TaskInput> {
     return argInput;
   }
 
-  if (!process.stdin.isTTY) {
+  if (!input.isTTY) {
     throw new Error(
       'Interactive mode requires TTY. Provide args: npm run dev -- "<title>" "<details>"',
     );

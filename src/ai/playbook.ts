@@ -3,6 +3,8 @@ import { buildPlaybookPrompt } from '../prompts/playbook-prompt.js';
 import { safeParseJson } from './utils.js';
 import type { PlaybookOutput, DimensionResult, PerformanceDimension } from '../types.js';
 
+const MAX_PLAYBOOK_TOKENS = 16000;
+
 export async function generatePlaybook(
   title: string,
   description: string,
@@ -13,7 +15,7 @@ export async function generatePlaybook(
   const res = await callNim({
     userPrompt: prompt,
     temperature: 0.7,
-    maxTokens: 8000,
+    maxTokens: MAX_PLAYBOOK_TOKENS,
   });
 
   let parsed: unknown;
@@ -59,7 +61,11 @@ export async function generatePlaybook(
           return { trigger: String(nn.trigger ?? ''), message: String(nn.message ?? '') };
         })
       : [],
-    estimatedTimeline: String(obj.estimatedTimeline ?? 'Not specified'),
+    estimatedTimeline: String(
+      typeof obj.estimatedTimeline === 'string' && obj.estimatedTimeline.trim()
+        ? obj.estimatedTimeline
+        : 'Not specified'
+    ),
     completionGuide: String(obj.completionGuide ?? ''),
   };
 

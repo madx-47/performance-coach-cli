@@ -1,13 +1,17 @@
 import process from 'node:process';
 
-const RESET = '\x1b[0m';
-const BOLD = '\x1b[1m';
-const DIM = '\x1b[2m';
-const CYAN = '\x1b[36m';
-const BLUE = '\x1b[34m';
-const GREEN = '\x1b[32m';
-const YELLOW = '\x1b[33m';
-const RED = '\x1b[31m';
+const colorEnabled = Boolean(
+  process.stdout.isTTY && !process.env.NO_COLOR
+);
+
+const RESET = colorEnabled ? '\x1b[0m' : '';
+const BOLD = colorEnabled ? '\x1b[1m' : '';
+const DIM = colorEnabled ? '\x1b[2m' : '';
+const CYAN = colorEnabled ? '\x1b[36m' : '';
+const BLUE = colorEnabled ? '\x1b[34m' : '';
+const GREEN = colorEnabled ? '\x1b[32m' : '';
+const YELLOW = colorEnabled ? '\x1b[33m' : '';
+const RED = colorEnabled ? '\x1b[31m' : '';
 
 function line(width = 70): string {
   return '-'.repeat(width);
@@ -47,12 +51,16 @@ export function renderError(text: string): void {
   console.error(`${RED}[error]${RESET} ${text}`);
 }
 
-export function renderDimensionBadge(name: string, confidence: number): string {
+export function formatDimensionBadge(name: string, confidence: number): string {
   const pct = Math.round(confidence * 100);
   const color = confidence >= 0.8 ? GREEN : confidence >= 0.5 ? YELLOW : RED;
   return `${color}${name.toUpperCase()}${RESET} ${DIM}${pct}%${RESET}`;
 }
 
+export function renderDimensionBadge(name: string, confidence: number): void {
+  console.log(formatDimensionBadge(name, confidence));
+}
+
 export function supportsColor(): boolean {
-  return Boolean(process.stdout.isTTY && process.env.NO_COLOR !== '1');
+  return colorEnabled;
 }
