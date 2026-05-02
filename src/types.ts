@@ -52,6 +52,19 @@ export interface PlaybookOutput {
   completionGuide: string; // Narrative guide for the task
 }
 
+export interface GrowthPluginItem {
+  areaName: string;
+  relevanceScore: number;
+  whatNeedsImprovement: string;
+  whyThisMatters: string;
+  howToImprove: string[];
+}
+
+export interface GrowthPluginOutput {
+  growthPlugin: GrowthPluginItem[];
+  shouldDisplay: boolean;
+}
+
 export interface NimRequest {
   model?: string;
   systemPrompt?: string;
