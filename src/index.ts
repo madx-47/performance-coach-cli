@@ -4,6 +4,9 @@ import { classifyTask } from './ai/classifier.js';
 import { generatePlaybook } from './ai/playbook.js';
 import type { ClassifierOutput, PlaybookOutput } from './types.js';
 import process from 'node:process';
+import * as fs from 'fs/promises';
+import * as path from 'path';
+import { buildPlaybookMarkdown, generateFilename } from './reporting/markdown-builder.js';
 
 const RESET = '\x1b[0m';
 const BOLD = '\x1b[1m';
@@ -73,7 +76,7 @@ function displayClassification(result: ClassifierOutput) {
 function displayPlaybook(pb: PlaybookOutput) {
   printSection('YOUR COMPLETION PLAYBOOK', BLUE);
 
-  // Dimension-specific guidance
+  // Dimension specific guidance
   for (const dim of pb.dimensions) {
     printSection(dim.dimension.toUpperCase().replace(/_/g, ' '), CYAN);
 
@@ -149,70 +152,24 @@ Environment:
 `);
 }
 
-import * as fs from 'fs/promises';
-import * as path from 'path';
-
-// ... (keep print functions)
-
 async function savePlaybookAsMarkdown(title: string, description: string, classification: ClassifierOutput, pb: PlaybookOutput): Promise<string> {
   const folder = 'task-details';
   await fs.mkdir(folder, { recursive: true });
   
-  const filename = `${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.md`;
+  // Get existing files for collision handling
+  let existingFiles: string[] = [];
+  try {
+    existingFiles = await fs.readdir(folder);
+  } catch {
+    // Folder doesn't exist yet or can't be read - that's fine
+  }
+  
+  const filename = generateFilename(title, existingFiles);
   const filepath = path.join(folder, filename);
   
-  let md = `# Task Playbook: ${title}\n\n`;
+  const markdownContent = buildPlaybookMarkdown(title, description, classification, pb);
   
-  if (classification.dimensions.length > 0) {
-    md += `> **Task Description**: ${description || '(No description provided)'}\n\n`;
-  }
-
-  md += `## 📊 Classification Breakdown\n\n`;
-  md += `| Dimension | Confidence | Rationale |\n`;
-  md += `| :--- | :--- | :--- |\n`;
-  for (const d of classification.dimensions) {
-    const isPrimary = d.dimension === classification.primaryDimension;
-    md += `| ${isPrimary ? '**' : ''}${d.dimension.toUpperCase().replace(/_/g, ' ')}${isPrimary ? ' (Primary)**' : ''} | ${Math.round(d.confidence * 100)}% | ${d.rationale} |\n`;
-  }
-  md += `\n`;
-
-  md += `## 🛠 Implementation Strategy\n\n`;
-
-  for (const dim of pb.dimensions) {
-    md += `### 🎯 ${dim.dimension.toUpperCase().replace(/_/g, ' ')}\n\n`;
-    
-    md += `#### ✅ Above Average Behaviors\n`;
-    dim.aboveAverage.forEach(item => md += `- ${item}\n`);
-    
-    md += `\n#### ★ Outstanding Stretch Goals\n`;
-    dim.outstanding.forEach(item => md += `- ${item}\n`);
-    
-    md += `\n#### ⚠ Pitfalls to Avoid\n`;
-    dim.pitfalls.forEach(item => md += `- ${item}\n`);
-    
-    md += `\n#### 💡 Coaching Nudge\n`;
-    dim.personalHooks.forEach(item => md += `- ${item}\n`);
-    md += `\n---\n\n`;
-  }
-
-  md += `## 📋 Checklists\n\n`;
-  
-  md += `### 1️⃣ Planning (Before Starting)\n`;
-  pb.planningChecklist.forEach(item => md += `- [ ] ${item}\n`);
-  
-  md += `\n### 2️⃣ Execution (While Implementing)\n`;
-  pb.executionChecklist.forEach(item => md += `- [ ] ${item}\n`);
-  
-  md += `\n### 3️⃣ Pre-PR (Before Review)\n`;
-  pb.prePRChecklist.forEach(item => md += `- [ ] ${item}\n`);
-
-  md += `\n## 🚀 Growth Nudges\n\n`;
-  pb.growthNudges.forEach(n => md += `- **${n.trigger}**: ${n.message}\n`);
-
-  md += `\n## 📖 Mentor Guide\n\n`;
-  md += pb.completionGuide;
-
-  await fs.writeFile(filepath, md);
+  await fs.writeFile(filepath, markdownContent);
   return filepath;
 }
 
