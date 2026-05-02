@@ -1,13 +1,12 @@
 import process from 'node:process';
+import config from '../config.js';
 import {
   NimRequest,
   NimResponse,
   NimApiError,
 } from '../types.js';
 
-const API_KEY = process.env.NVIDIA_NIM_API_KEY;
 const BASE_URL = process.env.NVIDIA_NIM_BASE_URL ?? 'https://integrate.api.nvidia.com/v1';
-const DEFAULT_MODEL = process.env.NVIDIA_NIM_MODEL ?? 'qwen/qwen3.5-122b-a10b';
 const TIMEOUT_MS = 15*60*1_000;
 const MAX_RETRIES = 3;
 const RETRY_DELAYS = [500, 1_000, 2_000];
@@ -26,15 +25,17 @@ function log(level: 'info' | 'error' | 'warn', msg: string, meta?: Record<string
 }
 
 export async function callNim(req: NimRequest): Promise<NimResponse> {
-  if (!API_KEY) {
+  const apiKey = config.get('nimApiKey') || process.env.NVIDIA_NIM_API_KEY;
+  
+  if (!apiKey) {
     throw new NimApiError(
-      'NVIDIA_NIM_API_KEY is not set. Create a .env file and add your key.',
+      'NVIDIA NIM API Key is not configured. Please run "/connect" to set your key.',
       0,
       false,
     );
   }
 
-  const model = req.model || DEFAULT_MODEL;
+  const model = req.model || config.get('model');
   const url = `${BASE_URL}/chat/completions`;
 
   const body = {
@@ -60,7 +61,7 @@ export async function callNim(req: NimRequest): Promise<NimResponse> {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${API_KEY}`,
+          'Authorization': `Bearer ${apiKey}`,
         },
         body: JSON.stringify(body),
         signal: controller.signal,

@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "CLI task classifier + playbook generator using NVIDIA NIM",
   "main": "dist/index.js",
+  "bin": {
+    "ai-coach": "dist/cli.js"
+  },
   "type": "module",
   "scripts": {
     "build": "tsc",
@@ -20,7 +23,11 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "dotenv": "^16.4.5"
+    "@clack/prompts": "^1.3.0",
+    "commander": "^14.0.3",
+    "conf": "^15.1.0",
+    "dotenv": "^16.4.5",
+    "picocolors": "^1.1.1"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
